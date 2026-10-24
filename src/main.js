@@ -29,6 +29,41 @@ async function startApp() {
   const searchInput = document.getElementById("searchInput");
   const queryButtonsDiv = document.getElementById("queryButtons");
   const outputDiv = document.getElementById("output");
+  const themeToggle = document.getElementById("themeToggle");
+  const themeToggleIcon = document.querySelector(".theme-toggle-icon");
+  const themeToggleLabel = document.querySelector(".theme-toggle-label");
+
+  function applyTheme(theme) {
+    const nextTheme = theme === "light" ? "light" : "dark";
+    document.body.setAttribute("data-theme", nextTheme);
+    const isDark = nextTheme === "dark";
+
+    if (themeToggle) {
+      themeToggle.setAttribute("aria-pressed", String(!isDark));
+    }
+
+    if (themeToggleIcon) {
+      themeToggleIcon.textContent = isDark ? "☀️" : "🌙";
+    }
+
+    if (themeToggleLabel) {
+      themeToggleLabel.textContent = isDark ? "Light mode" : "Dark mode";
+    }
+
+    localStorage.setItem("theme", nextTheme);
+  }
+
+  const preferredTheme =
+    localStorage.getItem("theme") ||
+    (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+  applyTheme(preferredTheme);
+
+  if (themeToggle) {
+    themeToggle.addEventListener("click", () => {
+      const currentTheme = document.body.getAttribute("data-theme") === "light" ? "light" : "dark";
+      applyTheme(currentTheme === "dark" ? "light" : "dark");
+    });
+  }
 
   let uploadedFileName = "";
   const queryButtons = [];
@@ -38,7 +73,7 @@ async function startApp() {
     button.type = "button";
     button.disabled = true;
     button.className =
-      "py-2 px-4 bg-emerald-600 text-white font-semibold rounded-lg hover:bg-emerald-500 disabled:bg-gray-800 disabled:text-gray-500 disabled:cursor-not-allowed transition";
+      "py-2 px-4 bg-[#7876cf] text-white font-semibold rounded-lg hover:bg-[#6c68bd] disabled:bg-gray-800 disabled:text-gray-500 disabled:cursor-not-allowed transition";
     button.innerText = label;
 
     button.addEventListener("click", async () => {

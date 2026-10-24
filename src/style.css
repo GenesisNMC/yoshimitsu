@@ -1,1 +1,158 @@
 @import "tailwindcss";
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body {
+  min-height: 100%;
+}
+
+body {
+  background-color: #020817;
+  color: #f3f4f6;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+body[data-theme="light"] {
+  color-scheme: light;
+  background-color: #f8fafc;
+  color: #0f172a;
+}
+
+.theme-toggle {
+  box-shadow: 0 0 0 1px rgba(120, 118, 207, 0.25);
+  background: #7876cf !important;
+  border-color: #7876cf !important;
+  color: #ffffff !important;
+}
+
+.theme-toggle:hover {
+  background: #6c68bd !important;
+  border-color: #6c68bd !important;
+}
+
+.theme-toggle-icon {
+  transform: rotate(0deg);
+  background: rgba(255, 255, 255, 0.2) !important;
+  color: #ffffff !important;
+}
+
+body[data-theme="light"] .theme-toggle {
+  background-color: #7876cf !important;
+  border-color: #7876cf !important;
+  color: #ffffff !important;
+}
+
+body[data-theme="light"] .theme-toggle-icon {
+  background-color: rgba(255, 255, 255, 0.18) !important;
+  transform: rotate(180deg);
+}
+
+body[data-theme="light"] [class*="bg-gray-950"] {
+  background-color: #ffffff !important;
+}
+
+body[data-theme="light"] [class*="bg-gray-900"] {
+  background-color: #f8fafc !important;
+}
+
+body[data-theme="light"] [class*="bg-gray-800"],
+body[data-theme="light"] [class*="bg-gray-700"] {
+  background-color: #f1f5f9 !important;
+}
+
+body[data-theme="light"] [class*="border-gray-800"],
+body[data-theme="light"] [class*="border-gray-900"],
+body[data-theme="light"] [class*="border-gray-700"] {
+  border-color: #dfe7f1 !important;
+}
+
+body[data-theme="light"] [class*="text-gray-100"],
+body[data-theme="light"] [class*="text-gray-200"] {
+  color: #0f172a !important;
+}
+
+body[data-theme="light"] [class*="text-gray-300"],
+body[data-theme="light"] [class*="text-gray-400"],
+body[data-theme="light"] [class*="text-gray-500"],
+body[data-theme="light"] [class*="text-gray-600"],
+body[data-theme="light"] [class*="text-gray-700"] {
+  color: #334155 !important;
+}
+
+body[data-theme="light"] [class*="shadow-lg"] {
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06) !important;
+}
+
+body[data-theme="light"] [class*="placeholder-gray-"] {
+  color: #64748b !important;
+}
+
+body[data-theme="light"] [class*="text-gray-400"] {
+  color: #475569 !important;
+}
+
+body[data-theme="light"] [class*="text-gray-500"] {
+  color: #64748b !important;
+}
+
+body[data-theme="light"] [class*="bg-gray-950/80"],
+body[data-theme="light"] [class*="bg-gray-900/50"],
+body[data-theme="light"] [class*="bg-gray-950/60"] {
+  background-color: rgba(248, 250, 252, 0.95) !important;
+}
+
+body[data-theme="light"] input,
+body[data-theme="light"] textarea,
+body[data-theme="light"] select {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #dfe7f1 !important;
+}
+
+body[data-theme="light"] #output {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #dfe7f1 !important;
+}
+
+input[type="file"]::file-selector-button {
+  background: #7876cf !important;
+  color: #ffffff !important;
+  border: 1px solid #7876cf !important;
+  box-shadow: none !important;
+  font-weight: 600 !important;
+}
+
+body[data-theme="light"] input[type="file"] {
+  color: #0f172a !important;
+}
+
+body[data-theme="light"] input[type="file"]::file-selector-button {
+  background: linear-gradient(180deg, #7876cf 0%, #6c68bd 100%) !important;
+  color: #ffffff !important;
+  border: 1px solid #7876cf !important;
+  box-shadow: none !important;
+  font-weight: 600 !important;
+}
+
+body[data-theme="light"] input[type="file"] {
+  background: #ffffff !important;
+  border: 1px solid #dfe7f1 !important;
+  border-radius: 0.75rem !important;
+  color: #0f172a !important;
+}
+
+body[data-theme="light"] .file\:bg-indigo-600,
+body[data-theme="light"] .file\:bg-indigo-500 {
+  background: linear-gradient(180deg, #7876cf 0%, #6c68bd 100%) !important;
+  color: #ffffff !important;
+}
+
+body[data-theme="light"] .hover\:bg-gray-800:hover,
+body[data-theme="light"] .hover\:bg-gray-900:hover,
+body[data-theme="light"] .hover\:bg-gray-800\/90:hover {
+  background-color: #f1f5f9 !important;
+}
