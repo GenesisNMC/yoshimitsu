@@ -1,4 +1,4 @@
 SELECT
-    COUNT(*)
+    COUNT(*) AS COUNT
 FROM
     source_data;

@@ -1,155 +1,146 @@
+// Import modules
 import "./style.css";
 import * as duckdb from "@duckdb/duckdb-wasm";
 import duckdb_wasm from "@duckdb/duckdb-wasm/dist/duckdb-mvp.wasm?url";
 import worker_js from "@duckdb/duckdb-wasm/dist/duckdb-browser-mvp.worker.js?url";
-
-// Import your modular SQL file using Vite's ?raw loader
 import selectAllQuery from "./sql/select_all.sql?raw";
+import selectAllLimit100Query from "./sql/select_all_limit_100.sql?raw";
+import countAllQuery from "./sql/count_all.sql?raw";
 
-async function initDuckDB() {
-  const manualBundles = {
-    mvp: {
-      mainWorker: worker_js,
-      mainModule: duckdb_wasm,
-    },
-  };
+async function startApp() {
+  const queryConfigs = [
+    { label: "View all data", sql: selectAllQuery },
+    { label: "View top 100 rows", sql: selectAllLimit100Query },
+    { label: "Count rows", sql: countAllQuery },
+  ];
 
-  const bundle = await duckdb.selectBundle(manualBundles);
-  const worker = new Worker(bundle.mainWorker);
+  // 1. I-setup at simulan ang DuckDB sa loob ng browser worker
+  const worker = new Worker(worker_js);
   const logger = new duckdb.ConsoleLogger();
   const db = new duckdb.AsyncDuckDB(logger, worker);
-  await db.instantiate(bundle.mainModule);
-
-  return db;
-}
-
-async function run() {
-  const db = await initDuckDB();
+  await db.instantiate(duckdb_wasm);
   const connection = await db.connect();
 
+  // 2. Kunin ang mga HTML elements mula sa index.html
   const fileInput = document.getElementById("csvInput");
-  const runQueryBtn = document.getElementById("runQueryBtn");
-  const searchInput = document.getElementById("searchInput");
+  const queryButtonsDiv = document.getElementById("queryButtons");
   const outputDiv = document.getElementById("output");
 
-  let isDataLoaded = false;
-  let allRows = []; // Dito natin ise-save ang buong data para mabilis i-filter
-  let columns = []; // Dito natin ise-save ang column names
+  let uploadedFileName = "";
+  const queryButtons = [];
 
-  // 1. File Ingestion
+  queryConfigs.forEach(({ label, sql }) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.disabled = true;
+    button.className =
+      "py-2 px-4 bg-emerald-600 text-white font-semibold rounded-lg hover:bg-emerald-500 disabled:bg-gray-800 disabled:text-gray-500 disabled:cursor-not-allowed transition";
+    button.innerText = label;
+
+    button.addEventListener("click", async () => {
+      await runQueryAndRender(sql);
+    });
+
+    queryButtons.push(button);
+    queryButtonsDiv.appendChild(button);
+  });
+
+  function setQueryButtonsEnabled(enabled) {
+    queryButtons.forEach((button) => {
+      button.disabled = !enabled;
+    });
+  }
+
+  function buildReader() {
+    return uploadedFileName.endsWith(".parquet")
+      ? `read_parquet('${uploadedFileName}')`
+      : `read_csv_auto('${uploadedFileName}', header=true)`;
+  }
+
+  async function refreshSourceTable() {
+    const reader = buildReader();
+    await connection.query(
+      `CREATE OR REPLACE TABLE source_data AS SELECT * FROM ${reader};`,
+    );
+  }
+
+  function renderRows(rows) {
+    if (rows.length === 0) {
+      outputDiv.innerHTML = "<p>No data found</p>";
+      return;
+    }
+
+    const columns = Object.keys(rows[0]);
+    let html = `<table class="w-full text-left border-collapse"><thead><tr class="border-b border-gray-800 text-gray-400 text-xs uppercase">`;
+
+    columns.forEach((col) => {
+      html += `<th class="p-2">${col}</th>`;
+    });
+    html += `</tr></thead><tbody class="font-mono text-xs">`;
+
+    rows.forEach((row) => {
+      html += `<tr class="border-b border-gray-900 hover:bg-gray-900/50">`;
+      columns.forEach((col) => {
+        const val =
+          row[col] !== null && row[col] !== undefined ? row[col] : "null";
+        html += `<td class="p-2 text-gray-300 truncate max-w-xs">${val}</td>`;
+      });
+      html += `</tr>`;
+    });
+    html += `</tbody></table>`;
+
+    outputDiv.innerHTML = html;
+  }
+
+  async function runQueryAndRender(sqlText) {
+    if (!uploadedFileName) {
+      outputDiv.innerText = "Please upload a CSV or Parquet file first.";
+      return;
+    }
+
+    outputDiv.innerText = "Running query...";
+
+    try {
+      const queryResult = await connection.query(sqlText);
+      const rows = queryResult.toArray().map((row) => row.toJSON());
+      renderRows(rows);
+    } catch (err) {
+      outputDiv.innerText = `Query Error: ${err.message}`;
+      console.error(err);
+    }
+  }
+
+  setQueryButtonsEnabled(false);
+
+  // 3. Kapag namili ang user ng file (CSV o Parquet)
   fileInput.addEventListener("change", async (event) => {
     const file = event.target.files[0];
     if (!file) return;
 
-    outputDiv.innerText = `Ingesting ${file.name} into DuckDB...`;
+    uploadedFileName = file.name;
+    outputDiv.innerText = `Now loading ${uploadedFileName}...`;
 
     try {
-      const fileName = file.name;
+      // I-rehistro ang file sa virtual filesystem ng DuckDB
       await db.registerFileHandle(
-        fileName,
+        uploadedFileName,
         file,
         duckdb.DuckDBDataProtocol.BROWSER_FILEREADER,
         true,
       );
 
-      if (fileName.toLowerCase().endsWith(".parquet")) {
-        await connection.query(`
-          CREATE OR REPLACE TABLE source_data AS 
-          SELECT * FROM read_parquet('${fileName}');
-        `);
-      } else {
-        await connection.query(`
-          CREATE OR REPLACE TABLE source_data AS 
-          SELECT * FROM read_csv_auto('${fileName}', header=true);
-        `);
-      }
+      // I-refresh ang table isang beses pagkaupload para di na ulit sa bawat query.
+      await refreshSourceTable();
 
-      isDataLoaded = true;
-      runQueryBtn.disabled = false;
-      outputDiv.innerText = `Success! ${file.name} loaded. Click "Run Query" to display data.`;
+      // Paganahin ang button para pwede na itong i-click
+      setQueryButtonsEnabled(true);
+      outputDiv.innerText = `Success! ${uploadedFileName} has been loaded`;
     } catch (err) {
-      outputDiv.innerText = `Error processing file: ${err.message}`;
-      console.error(err);
+      setQueryButtonsEnabled(false);
+      outputDiv.innerText = `Error loading file: ${err.message}`;
     }
-  });
-
-  // Function para i-render ang table gamit ang filtered data
-  function renderTable(dataToRender) {
-    if (dataToRender.length === 0) {
-      outputDiv.innerHTML = `<p class="text-gray-400 italic">No matching rows found.</p>`;
-      return;
-    }
-
-    let html = `
-      <table class="w-full text-left border-collapse">
-        <thead>
-          <tr class="border-b border-gray-800 text-gray-400 text-xs uppercase tracking-wider">
-            ${columns.map((col) => `<th class="py-2.5 px-3 font-semibold">${col}</th>`).join("")}
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-gray-800/60 font-mono text-xs">
-    `;
-
-    for (const row of dataToRender) {
-      html += `<tr class="hover:bg-gray-900/80 transition-colors">`;
-      for (const col of columns) {
-        const val = row[col];
-        const displayVal =
-          val !== null && val !== undefined
-            ? val
-            : '<span class="text-gray-600 italic">null</span>';
-        html += `<td class="py-2 px-3 text-gray-300 truncate max-w-xs">${displayVal}</td>`;
-      }
-      html += `</tr>`;
-    }
-
-    html += `</tbody></table>`;
-    outputDiv.innerHTML = html;
-  }
-
-  // 2. Execute Query Button Click
-  runQueryBtn.addEventListener("click", async () => {
-    if (!isDataLoaded) return;
-
-    outputDiv.innerText = "Executing query...";
-
-    try {
-      const queryResult = await connection.query(selectAllQuery);
-      allRows = queryResult.toArray().map((row) => row.toJSON());
-
-      if (allRows.length === 0) {
-        outputDiv.innerHTML = `<p class="text-gray-400 italic">Query returned 0 rows.</p>`;
-        return;
-      }
-
-      columns = Object.keys(allRows[0]);
-      renderTable(allRows);
-    } catch (err) {
-      outputDiv.innerText = `Query error: ${err.message}`;
-      console.error(err);
-    }
-  });
-
-  // 3. Global Search Input Listener (Real-time filtering)
-  searchInput.addEventListener("input", (e) => {
-    const searchTerm = e.target.value.toLowerCase().trim();
-
-    if (!searchTerm) {
-      renderTable(allRows);
-      return;
-    }
-
-    // I-filter ang rows kung saan ang search term ay tumutugma sa KAHIT ANONG column value
-    const filteredRows = allRows.filter((row) => {
-      return columns.some((col) => {
-        const val = row[col];
-        if (val === null || val === undefined) return false;
-        return String(val).toLowerCase().includes(searchTerm);
-      });
-    });
-
-    renderTable(filteredRows);
   });
 }
 
-run();
+// Patakbuhin ang app pagka-load
+startApp();
