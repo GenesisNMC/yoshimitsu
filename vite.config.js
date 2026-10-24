@@ -7,7 +7,7 @@ const crossOriginHeaders = {
 };
 
 export default defineConfig({
-  base: '/',
+  base: process.env.GITHUB_ACTIONS ? './' : '/',
   plugins: [
     tailwindcss(),
   ],
