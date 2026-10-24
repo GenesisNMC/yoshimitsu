@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+    <link rel="stylesheet" href="/src/style.css" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Data Janitor</title>
+  </head>
+  <body class="bg-gray-950 text-gray-100 min-h-screen flex flex-col">
+    <header class="p-4 border-b border-gray-800">
+      <h1 class="text-xl font-bold tracking-tight">Data Janitor</h1>
+    </header>
+
+    <main class="flex-1 p-6 max-w-5xl mx-auto w-full">
+      <p class="text-gray-400">
+        Extract, Cleanse, Transform and Load data from legacy source to target
+      </p>
+
+      <div class="bg-gray-900 border border-gray-800 p-6 rounded-xl shadow-lg">
+        <h2 class="text-lg font-semibold mb-3">1. Upload csv</h2>
+        <input
+          type="file"
+          id="csvInput"
+          accept=".csv"
+          class="block w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-indigo-600 file:text-white hover:file:bg-indigo-500 cursor-pointer"
+        />
+      </div>
+
+      <!-- Action Button -->
+      <button
+        id="runQueryBtn"
+        disabled
+        class="w-full py-2 px-4 bg-emerald-600 text-white font-semibold rounded-lg hover:bg-emerald-500 disabled:bg-gray-800 disabled:text-gray-500 disabled:cursor-not-allowed transition"
+      >
+        Select All
+      </button>
+
+      <!-- Query Output Card -->
+      <div class="bg-gray-900 border border-gray-800 p-6 rounded-xl shadow-lg">
+        <h2 class="text-lg font-semibold mb-3">2. DuckDB Query Result</h2>
+        <div
+          id="output"
+          class="overflow-x-auto text-sm font-mono text-gray-300 bg-gray-950 p-4 rounded-lg border border-gray-800 max-h-96 overflow-y-auto"
+        >
+          Upload a CSV file to enable the query button...
+        </div>
+      </div>
+    </main>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
