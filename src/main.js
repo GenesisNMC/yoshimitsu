@@ -5,23 +5,41 @@ import duckdb_wasm from "@duckdb/duckdb-wasm/dist/duckdb-mvp.wasm?url";
 import worker_js from "@duckdb/duckdb-wasm/dist/duckdb-browser-mvp.worker.js?url";
 import selectAllQuery from "./sql/select_all.sql?raw";
 import selectAllLimit100Query from "./sql/select_all_limit_100.sql?raw";
-import countAllQuery from "./sql/count_all.sql?raw";
+// import countAllQuery from "./sql/count_all.sql?raw";
 
+// Set parameters for the application
 async function startApp() {
-  const MAX_UPLOAD_ROWS = 1_000;
+  const MAX_UPLOAD_ROWS = 100_000;
+  const PAGE_SIZE = 100;
+  const PAGE_SIZES = [25, 50, 100, 250];
   const SEARCH_DEBOUNCE_MS = 1_000;
+  let allDataPageSize = PAGE_SIZE;
 
+  // Define the available query configurations; buttons will be created for each query
   const queryConfigs = [
     { label: "View all data", sql: selectAllQuery },
     { label: "View top 100 rows", sql: selectAllLimit100Query },
-    { label: "Count rows", sql: countAllQuery },
+    // { label: "Count rows", sql: countAllQuery },
   ];
 
   // Setup DuckDB in the browser worker
+  const PERSISTENT_STORAGE = true;
   const worker = new Worker(worker_js);
   const logger = new duckdb.ConsoleLogger();
   const db = new duckdb.AsyncDuckDB(logger, worker);
   await db.instantiate(duckdb_wasm);
+
+  // Configure persistent storage using OPFS or fallback to memory
+  if (PERSISTENT_STORAGE) {
+    await db.open({
+      path: "opfs://yoshimitsu_data.duckdb",
+      accessMode: duckdb.DuckDBAccessMode.READ_WRITE,
+      opfs: { fileHandling: "auto" },
+    });
+  } else {
+    await db.open({ path: ":memory:" });
+  }
+
   const connection = await db.connect();
 
   // Get the HTML elements from index.html
@@ -55,16 +73,20 @@ async function startApp() {
 
   const preferredTheme =
     localStorage.getItem("theme") ||
-    (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    (window.matchMedia("(prefers-color-scheme: dark)").matches
+      ? "dark"
+      : "light");
   applyTheme(preferredTheme);
 
   if (themeToggle) {
     themeToggle.addEventListener("click", () => {
-      const currentTheme = document.body.getAttribute("data-theme") === "light" ? "light" : "dark";
+      const currentTheme =
+        document.body.getAttribute("data-theme") === "light" ? "light" : "dark";
       applyTheme(currentTheme === "dark" ? "light" : "dark");
     });
   }
 
+  // Create query buttons
   let uploadedFileName = "";
   const queryButtons = [];
 
@@ -79,6 +101,10 @@ async function startApp() {
 
     button.addEventListener("click", async () => {
       setActiveQueryButton(button);
+      if (label === "View all data") {
+        await loadAllDataPage(0, allDataPageSize);
+        return;
+      }
       await runQueryAndRender(sql);
     });
 
@@ -94,7 +120,10 @@ async function startApp() {
 
   function setActiveQueryButton(activeButton) {
     queryButtons.forEach((button) => {
-      button.setAttribute("data-active", button === activeButton ? "true" : "false");
+      button.setAttribute(
+        "data-active",
+        button === activeButton ? "true" : "false",
+      );
     });
   }
 
@@ -122,9 +151,101 @@ async function startApp() {
     };
   }
 
-  function renderRows(rows) {
+  async function getSourceRowCount() {
+    const countResult = await connection.query(
+      "SELECT COUNT(*) AS total_rows FROM source_data;",
+    );
+    return Number(countResult.toArray()[0].toJSON().total_rows ?? 0);
+  }
+
+  function renderPaginationControls({
+    pageIndex,
+    pageSize,
+    totalRows,
+    onPageChange,
+    onPageSizeChange,
+  }) {
+    const totalPages = Math.max(1, Math.ceil(totalRows / pageSize));
+    const safePageIndex = Math.min(pageIndex, totalPages - 1);
+    const startRow = totalRows === 0 ? 0 : safePageIndex * pageSize + 1;
+    const endRow = Math.min((safePageIndex + 1) * pageSize, totalRows);
+    const startPage = Math.max(0, Math.min(safePageIndex - 2, totalPages - 5));
+    const endPage = Math.min(totalPages, startPage + 5);
+    const pageButtons = Array.from({ length: endPage - startPage }, (_, idx) => {
+      const pageNumber = startPage + idx + 1;
+      const isCurrent = pageNumber - 1 === safePageIndex;
+      return `
+        <button
+          type="button"
+          data-page-number="${pageNumber}"
+          class="rounded border px-2 py-1 text-[11px] ${
+            isCurrent
+              ? "border-amber-400 bg-amber-500/20 text-amber-200"
+              : "border-gray-700 bg-gray-900 text-gray-300 hover:bg-gray-800"
+          }"
+        >
+          ${pageNumber}
+        </button>
+      `;
+    }).join("");
+
+    const controlsHtml = `
+      <div class="mt-4 flex flex-col gap-3 rounded-lg border border-gray-800 bg-gray-950/70 px-3 py-2 text-xs text-gray-300 sm:flex-row sm:items-center sm:justify-between">
+        <div class="flex items-center gap-2">
+          <button type="button" data-page-action="prev" ${safePageIndex === 0 ? "disabled" : ""} class="rounded border border-gray-700 bg-gray-900 px-2 py-1 disabled:cursor-not-allowed disabled:opacity-40 hover:bg-gray-800">Prev</button>
+          <div class="flex items-center gap-1.5">${pageButtons}</div>
+          <button type="button" data-page-action="next" ${safePageIndex >= totalPages - 1 ? "disabled" : ""} class="rounded border border-gray-700 bg-gray-900 px-2 py-1 disabled:cursor-not-allowed disabled:opacity-40 hover:bg-gray-800">Next</button>
+        </div>
+        <label class="flex items-center gap-2 text-[11px] uppercase tracking-wide text-gray-400">
+          Rows per page
+          <select data-page-size-select class="rounded border border-gray-700 bg-gray-900 px-2 py-1 text-gray-200 outline-none">
+            ${PAGE_SIZES.map((size) => `<option value="${size}" ${size === pageSize ? "selected" : ""}>${size}</option>`).join("")}
+          </select>
+        </label>
+        <span class="text-[11px] text-gray-400">${startRow}-${endRow} of ${totalRows.toLocaleString()}</span>
+      </div>
+    `;
+
+    outputDiv.insertAdjacentHTML("beforeend", controlsHtml);
+
+    const prevButton = outputDiv.querySelector('[data-page-action="prev"]');
+    const nextButton = outputDiv.querySelector('[data-page-action="next"]');
+    const pageButtonsEls = outputDiv.querySelectorAll('[data-page-number]');
+    const pageSizeSelect = outputDiv.querySelector('[data-page-size-select]');
+
+    prevButton?.addEventListener("click", () => {
+      if (safePageIndex > 0) {
+        onPageChange(safePageIndex - 1);
+      }
+    });
+
+    nextButton?.addEventListener("click", () => {
+      if (safePageIndex < totalPages - 1) {
+        onPageChange(safePageIndex + 1);
+      }
+    });
+
+    pageButtonsEls.forEach((button) => {
+      button.addEventListener("click", () => {
+        const nextPage = Number(button.getAttribute("data-page-number")) - 1;
+        onPageChange(nextPage);
+      });
+    });
+
+    pageSizeSelect?.addEventListener("change", (event) => {
+      const nextSize = Number(event.target.value);
+      if (Number.isFinite(nextSize) && nextSize > 0) {
+        onPageSizeChange(nextSize);
+      }
+    });
+  }
+
+  function renderRows(rows, pagination = null) {
     if (rows.length === 0) {
       outputDiv.innerHTML = "<p>No data found</p>";
+      if (pagination) {
+        renderPaginationControls(pagination);
+      }
       return;
     }
 
@@ -379,13 +500,17 @@ async function startApp() {
                 return false;
               }
 
-              return getDateBucketKey(parsed, dateProfile.granularity) === item.key;
+              return (
+                getDateBucketKey(parsed, dateProfile.granularity) === item.key
+              );
             },
           })),
         };
       }
 
-      const sortedValues = [...valueCounts.entries()].sort((a, b) => b[1] - a[1]);
+      const sortedValues = [...valueCounts.entries()].sort(
+        (a, b) => b[1] - a[1],
+      );
       const topEntries = sortedValues.slice(0, 10);
       const topSet = new Set(topEntries.map(([value]) => value));
       const otherCount = Math.max(
@@ -425,14 +550,22 @@ async function startApp() {
         const bars =
           distribution.bars.length > 0
             ? distribution.bars
-            : [{ key: "empty", label: "(empty)", count: 0, matches: () => false }];
+            : [
+                {
+                  key: "empty",
+                  label: "(empty)",
+                  count: 0,
+                  matches: () => false,
+                },
+              ];
         const maxValue = Math.max(...bars.map((item) => item.count), 1);
         const colorClassByType = {
           numeric: "bg-cyan-500",
           date: "bg-indigo-500",
           category: "bg-emerald-500",
         };
-        const barColorClass = colorClassByType[distribution.type] || "bg-emerald-500";
+        const barColorClass =
+          colorClassByType[distribution.type] || "bg-emerald-500";
         const activeKey = activeFilters[col]?.key;
 
         // Fixed frame height keeps all mini charts visually uniform.
@@ -475,7 +608,8 @@ async function startApp() {
 
       return sourceRows.filter((row) =>
         columns.some((col) => {
-          const raw = row[col] !== null && row[col] !== undefined ? row[col] : "null";
+          const raw =
+            row[col] !== null && row[col] !== undefined ? row[col] : "null";
           return String(raw).toLowerCase().includes(normalized);
         }),
       );
@@ -556,6 +690,21 @@ async function startApp() {
         ? `<p class="text-[11px] text-amber-400 mb-2">Mini charts are based on first ${profileSampleLimit.toLocaleString()} rows for speed.</p>`
         : "";
 
+      const paginationSummary = pagination
+        ? (() => {
+            const totalPages = Math.max(1, Math.ceil(pagination.totalRows / pagination.pageSize));
+            const safePageIndex = Math.min(pagination.pageIndex, totalPages - 1);
+            const startRow = pagination.totalRows === 0 ? 0 : safePageIndex * pagination.pageSize + 1;
+            const endRow = Math.min((safePageIndex + 1) * pagination.pageSize, pagination.totalRows);
+            return `
+              <div class="mb-3 flex items-center justify-between gap-3 rounded-lg border border-gray-800 bg-gray-950/70 px-3 py-2 text-[11px] uppercase tracking-wide text-gray-300">
+                <span><span class="text-gray-500">Dataset</span> ${pagination.totalRows.toLocaleString()} rows</span>
+                <span><span class="text-gray-500">Page</span> ${safePageIndex + 1}/${totalPages} • ${startRow}-${endRow}</span>
+              </div>
+            `;
+          })()
+        : "";
+
       const activeFilterItems = Object.values(activeFilters);
       const filterSummary =
         activeFilterItems.length > 0
@@ -564,7 +713,9 @@ async function startApp() {
                 (filter) =>
                   `<button type="button" data-remove-filter="1" data-col="${escapeHtml(filter.col)}" class="text-[11px] px-2 py-1 rounded border border-amber-500/40 bg-amber-500/10 text-amber-200 hover:bg-amber-500/20">${escapeHtml(filter.col)}: ${escapeHtml(filter.label)} x</button>`,
               )
-              .join("")}<button type="button" id="clearAllFiltersBtn" class="text-[11px] px-2 py-1 rounded border border-gray-700 text-gray-300 hover:bg-gray-800">Clear all</button></div>`
+              .join(
+                "",
+              )}<button type="button" id="clearAllFiltersBtn" class="text-[11px] px-2 py-1 rounded border border-gray-700 text-gray-300 hover:bg-gray-800">Clear all</button></div>`
           : "";
 
       const emptyNotice =
@@ -572,14 +723,19 @@ async function startApp() {
           ? `<p class="text-[11px] text-rose-300 mb-2">No rows match the current filters.</p>`
           : "";
 
-      outputDiv.innerHTML = `${sampleNotice}${filterSummary}${emptyNotice}${html}`;
+      outputDiv.innerHTML = `${sampleNotice}${filterSummary}${emptyNotice}${paginationSummary}${html}`;
+      if (pagination) {
+        renderPaginationControls(pagination);
+      }
 
       const distributionByColumn = {};
       columns.forEach((col) => {
         distributionByColumn[col] = getColumnDistribution(profileRows, col);
       });
 
-      const miniFilterButtons = outputDiv.querySelectorAll("[data-mini-filter='1']");
+      const miniFilterButtons = outputDiv.querySelectorAll(
+        "[data-mini-filter='1']",
+      );
       miniFilterButtons.forEach((button) => {
         button.addEventListener("click", () => {
           const col = button.getAttribute("data-col");
@@ -593,7 +749,9 @@ async function startApp() {
             return;
           }
 
-          const selectedBar = distribution.bars.find((item) => item.key === filterKey);
+          const selectedBar = distribution.bars.find(
+            (item) => item.key === filterKey,
+          );
           if (!selectedBar) {
             return;
           }
@@ -613,7 +771,9 @@ async function startApp() {
         });
       });
 
-      const removeFilterButtons = outputDiv.querySelectorAll("[data-remove-filter='1']");
+      const removeFilterButtons = outputDiv.querySelectorAll(
+        "[data-remove-filter='1']",
+      );
       removeFilterButtons.forEach((button) => {
         button.addEventListener("click", () => {
           const col = button.getAttribute("data-col");
@@ -652,8 +812,34 @@ async function startApp() {
     renderOutput();
   }
 
+  async function loadAllDataPage(pageIndex, pageSize = allDataPageSize) {
+    allDataPageSize = pageSize;
+    const totalRows = await getSourceRowCount();
+    const totalPages = Math.max(1, Math.ceil(totalRows / pageSize));
+    const safePageIndex = Math.min(Math.max(0, pageIndex), totalPages - 1);
+    const offset = safePageIndex * pageSize;
+    const sqlText = `SELECT * FROM source_data LIMIT ${pageSize} OFFSET ${offset};`;
+
+    outputDiv.innerText = `Loading page ${safePageIndex + 1}...`;
+
+    try {
+      const queryResult = await connection.query(sqlText);
+      const rows = queryResult.toArray().map((row) => row.toJSON());
+      renderRows(rows, {
+        pageIndex: safePageIndex,
+        pageSize,
+        totalRows,
+        onPageChange: (nextPage) => loadAllDataPage(nextPage, pageSize),
+        onPageSizeChange: (nextPageSize) => loadAllDataPage(0, nextPageSize),
+      });
+    } catch (err) {
+      outputDiv.innerText = `Query Error: ${err.message}`;
+      console.error(err);
+    }
+  }
+
   // Function to run a DuckDB query and render the results in the output div
-  async function runQueryAndRender(sqlText) {
+  async function runQueryAndRender(sqlText, pagination = null) {
     if (!uploadedFileName) {
       outputDiv.innerText = "Please upload a CSV or Parquet file first.";
       return;
@@ -664,7 +850,7 @@ async function startApp() {
     try {
       const queryResult = await connection.query(sqlText);
       const rows = queryResult.toArray().map((row) => row.toJSON());
-      renderRows(rows);
+      renderRows(rows, pagination);
     } catch (err) {
       outputDiv.innerText = `Query Error: ${err.message}`;
       console.error(err);
@@ -680,7 +866,7 @@ async function startApp() {
 
     uploadedFileName = file.name;
     setActiveQueryButton(null);
-    outputDiv.innerText = `Now loading ${uploadedFileName}...`;
+    outputDiv.innerText = `Hold tight, now loading ${uploadedFileName}...`;
 
     try {
       // Register the file in DuckDB's virtual filesystem
@@ -707,6 +893,7 @@ async function startApp() {
       outputDiv.innerText = `Error loading file: ${err.message}`;
     }
   });
+  
 }
 
 // Run the app on load

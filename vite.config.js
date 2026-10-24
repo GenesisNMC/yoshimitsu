@@ -1,20 +1,25 @@
 import { defineConfig } from 'vite';
 import tailwindcss from '@tailwindcss/vite';
 
+const crossOriginHeaders = {
+  'Cross-Origin-Embedder-Policy': 'require-corp',
+  'Cross-Origin-Opener-Policy': 'same-origin',
+};
+
 export default defineConfig({
-  // Relative base ensures assets resolve correctly on GitHub Pages project sites.
-  base: './',
+  base: '/',
   plugins: [
     tailwindcss(),
   ],
-  // Ensures proper asset handling for Web Workers and WASM binaries
   optimizeDeps: {
     exclude: ['@duckdb/duckdb-wasm'],
   },
-  server: {    
-    headers: {
-      'Cross-Origin-Embedder-Policy': 'require-corp',
-      'Cross-Origin-Opener-Policy': 'same-origin',
-    },
+  server: {
+    host: '0.0.0.0',
+    headers: crossOriginHeaders,
+  },
+  preview: {
+    host: '0.0.0.0',
+    headers: crossOriginHeaders,
   },
 });
