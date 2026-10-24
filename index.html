@@ -7,48 +7,158 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Data Janitor</title>
   </head>
-  <body class="bg-gray-950 text-gray-100 min-h-screen flex flex-col">
-    <header
-      class="p-4 border-b border-gray-800 flex items-center justify-between gap-3"
-    >
-      <h1 class="text-xl font-bold tracking-tight">Data Janitor</h1>
-      <button
-        id="themeToggle"
-        type="button"
-        aria-label="Toggle light and dark mode"
-        class="theme-toggle inline-flex items-center gap-2 rounded-full border border-gray-700 bg-gray-900 px-3 py-1.5 text-sm text-gray-200 transition-all duration-200 hover:bg-gray-800 hover:scale-[1.02]"
-      >
-        <span
-          class="theme-toggle-icon inline-flex h-6 w-6 items-center justify-center rounded-full bg-gray-800 text-base shadow-inner transition-transform duration-200"
-          >☀️</span
+  <body
+    class="app-shell"
+  >
+    <!-- ================= TOP HEADER ================= -->
+    <header class="top-header">
+      <div class="top-header-inner">
+        <!-- Hamburger Toggle Button (Left) -->
+        <button
+          id="menuToggle"
+          aria-label="Open menu"
+          class="icon-btn icon-btn-md"
         >
-        <span class="theme-toggle-label">Light mode</span>
-      </button>
+          <svg
+            class="w-6 h-6"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M4 6h16M4 12h16M4 18h16"
+            />
+          </svg>
+        </button>
+
+        <!-- Centered Logo & Title -->
+        <div class="absolute left-1/2 -translate-x-1/2 flex items-center gap-2">
+          <a href="#" class="flex items-center gap-2">
+            <img
+              src="/dc-logo.png"
+              alt="Data Concierge Logo"
+              class="h-8 w-auto object-contain"
+            />
+            <span
+              class="text-xl font-bold tracking-tight hidden sm:inline"
+              >Data Concierge</span
+            >
+          </a>
+        </div>
+
+        <!-- Right Side Controls (Theme Toggle) -->
+        <button
+          id="themeToggle"
+          type="button"
+          aria-label="Toggle light and dark mode"
+          class="theme-toggle"
+        >
+          <span
+            class="theme-toggle-icon inline-flex h-6 w-6 items-center justify-center rounded-full bg-gray-800 text-base shadow-inner transition-transform duration-200"
+            >☀️</span
+          >
+          <span class="theme-toggle-label hidden sm:inline">Light mode</span>
+        </button>
+      </div>
     </header>
 
-    <main class="flex-1 p-6 max-w-5xl mx-auto w-full space-y-4">
-      <p class="text-gray-400">
-        Extract, Cleanse, Transform and Load data from legacy source to target
-      </p>
+    <!-- ================= SIDEBAR NAV (Auto-hiding) ================= -->
+    <!-- Backdrop Overlay -->
+    <div
+      id="navBackdrop"
+      class="nav-backdrop"
+    ></div>
+
+    <!-- Sliding Sidebar -->
+    <aside
+      id="sidebar"
+      class="sidebar-panel"
+    >
+      <div class="sidebar-header">
+        <span
+          class="text-sm font-semibold text-gray-300 uppercase tracking-wider"
+          >Navigation</span
+        >
+        <button
+          id="closeNav"
+          aria-label="Close menu"
+          class="icon-btn icon-btn-sm"
+        >
+          <svg
+            class="w-5 h-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M6 18L18 6M6 6l12 12"
+            />
+          </svg>
+        </button>
+      </div>
+      <nav class="sidebar-nav">
+        <a
+          href="#"
+          class="sidebar-link sidebar-link-active"
+        >
+          Data Janitor
+        </a>
+        <a
+          href="#"
+          class="sidebar-link"
+        >
+          Accelerators
+        </a>
+        <a
+          href="#"
+          class="sidebar-link"
+        >
+          Case Studies
+        </a>
+        <a
+          href="#"
+          class="sidebar-link"
+        >
+          About
+        </a>
+      </nav>
+    </aside>
+
+    <!-- ================= MAIN CONTENT ================= -->
+    <main class="main-shell">
+      <div class="text-center my-6">
+        <h1
+          class="text-2xl sm:text-3xl font-bold tracking-tight mb-2"
+        >
+          Data Janitor
+        </h1>
+        <p class="text-gray-400 text-sm sm:text-base">
+          Extract, Cleanse, Transform and Load data from legacy source to target
+        </p>
+      </div>
 
       <!-- Upload Section -->
-      <div class="bg-gray-900 border border-gray-800 p-6 rounded-xl shadow-lg">
-        <h2 class="text-lg font-semibold mb-3">
-          1. Upload File (csv or Parquet)
+      <div class="surface-card">
+        <h2 class="section-heading">
+          1. Upload file (csv or Parquet)
         </h2>
         <input
           type="file"
           id="csvInput"
           accept=".csv, .parquet"
-          class="block w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-[#7876cf] file:text-white hover:file:bg-[#6c68bd] cursor-pointer"
+          class="block w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-[#7876cf] file:text-white hover:file:bg-[#6563bb] cursor-pointer transition-colors"
         />
       </div>
 
       <!-- Action Buttons Container -->
-      <div
-        class="bg-gray-900 border border-gray-800 p-6 rounded-xl shadow-lg space-y-3"
-      >
-        <h2 class="text-lg font-semibold mb-3">Actions</h2>
+      <div class="surface-card space-y-3">
+        <h2 class="section-heading">Actions</h2>
         <div
           id="queryButtons"
           class="grid grid-cols-1 sm:grid-cols-2 gap-3"
@@ -61,52 +171,56 @@
           type="text"
           id="searchInput"
           placeholder="Search across all columns"
-          class="w-full px-3 py-2 bg-gray-900 border border-gray-800 rounded-lg text-sm text-gray-200 focus:outline-none focus:border-gray-600 placeholder-gray-500"
+          class="field-input"
         />
       </div>
 
       <!-- Query Output Card -->
-      <div class="bg-gray-900 border border-gray-800 p-6 rounded-xl shadow-lg">
-        <h2 class="text-lg font-semibold mb-3">2. DuckDB Query Result</h2>
+      <div class="surface-card">
+        <h2 class="section-heading">2. View data</h2>
         <div
           id="output"
-          class="overflow-x-auto text-sm font-mono text-gray-300 bg-gray-950 p-4 rounded-lg border border-gray-800 max-h-96 overflow-y-auto"
+          class="output-panel"
         >
-          Upload a file to enable the query buttons...
-        </div>
-
-        <!-- Pagination Controls (Hidden by default until data is loaded) -->
-        <div
-          id="paginationControls"
-          class="flex items-center justify-between mt-4 text-xs text-gray-400 hidden"
-        >
-          <button
-            id="prevPageBtn"
-            class="px-3 py-1.5 bg-gray-900 hover:bg-gray-800 border border-gray-800 rounded-lg text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Previous
-          </button>
-          <span id="pageInfo">Page 1 of 1</span>
-          <button
-            id="nextPageBtn"
-            class="px-3 py-1.5 bg-gray-900 hover:bg-gray-800 border border-gray-800 rounded-lg text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Next
-          </button>
+          No file uploaded
         </div>
       </div>
     </main>
 
-    <footer
-      class="w-full border-t border-gray-800 bg-gray-950/80 backdrop-blur"
-    >
-      <div
-        class="mx-auto flex max-w-5xl flex-col items-center justify-center gap-3 px-4 py-4 text-center text-sm text-gray-400 sm:flex-row"
-      >
+    <!-- ================= FOOTER ================= -->
+    <footer class="site-footer">
+      <div class="site-footer-inner">
         <p>© Navarro Management Consulting trading as Data Concierge 2026</p>
       </div>
     </footer>
 
+    <!-- ================= SCRIPTS ================= -->
     <script type="module" src="/src/main.js"></script>
+    <script>
+      const menuToggle = document.getElementById("menuToggle");
+      const closeNav = document.getElementById("closeNav");
+      const sidebar = document.getElementById("sidebar");
+      const navBackdrop = document.getElementById("navBackdrop");
+
+      function openMenu() {
+        sidebar.classList.add("is-open");
+        navBackdrop.classList.remove("hidden");
+        setTimeout(() => {
+          navBackdrop.classList.add("is-visible");
+        }, 10);
+      }
+
+      function closeMenu() {
+        sidebar.classList.remove("is-open");
+        navBackdrop.classList.remove("is-visible");
+        setTimeout(() => {
+          navBackdrop.classList.add("hidden");
+        }, 300);
+      }
+
+      menuToggle.addEventListener("click", openMenu);
+      closeNav.addEventListener("click", closeMenu);
+      navBackdrop.addEventListener("click", closeMenu);
+    </script>
   </body>
 </html>

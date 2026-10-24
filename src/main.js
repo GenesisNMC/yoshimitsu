@@ -73,10 +73,12 @@ async function startApp() {
     button.type = "button";
     button.disabled = true;
     button.className =
-      "py-2 px-4 bg-[#7876cf] text-white font-semibold rounded-lg hover:bg-[#6c68bd] disabled:bg-gray-800 disabled:text-gray-500 disabled:cursor-not-allowed transition";
+      "query-action-btn py-2 px-4 bg-[#7876cf] border border-transparent text-white font-semibold rounded-lg hover:bg-[#6c68bd] disabled:bg-gray-800 disabled:text-gray-500 disabled:cursor-not-allowed transition";
+    button.setAttribute("data-active", "false");
     button.innerText = label;
 
     button.addEventListener("click", async () => {
+      setActiveQueryButton(button);
       await runQueryAndRender(sql);
     });
 
@@ -87,6 +89,12 @@ async function startApp() {
   function setQueryButtonsEnabled(enabled) {
     queryButtons.forEach((button) => {
       button.disabled = !enabled;
+    });
+  }
+
+  function setActiveQueryButton(activeButton) {
+    queryButtons.forEach((button) => {
+      button.setAttribute("data-active", button === activeButton ? "true" : "false");
     });
   }
 
@@ -671,6 +679,7 @@ async function startApp() {
     if (!file) return;
 
     uploadedFileName = file.name;
+    setActiveQueryButton(null);
     outputDiv.innerText = `Now loading ${uploadedFileName}...`;
 
     try {
@@ -694,6 +703,7 @@ async function startApp() {
       }
     } catch (err) {
       setQueryButtonsEnabled(false);
+      setActiveQueryButton(null);
       outputDiv.innerText = `Error loading file: ${err.message}`;
     }
   });
